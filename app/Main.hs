@@ -58,7 +58,7 @@ main
 go :: World -> IO ()
 go world = play (InWindow "Game rejnzu" (500,500) (0,0)) 
                white 
-               1 
+               0
                world 
                convert 
                handle
@@ -167,7 +167,7 @@ drawLastRow pos_x pos_y l          =      (drawLastCell
                                                          head l) 
                                                      ++ (drawLastRow (pos_x + sizeCell)   pos_y  $ tail l)
 
---отрисовка фишки последней строки
+--отрисовка фишки последней строки (не рисуе квадратик)
 drawLastCell :: Float -> Float -> Cell -> [Picture]
 drawLastCell _ _ Nothing                  =       [Blank]
 drawLastCell pos_x pos_y (Just Black)     =       [Translate 
@@ -181,7 +181,7 @@ drawLastCell pos_x pos_y (Just Red)       =       [Translate
 
 --обработка внешних событий
 handle :: Event -> World -> World
-handle (EventKey (MouseButton LeftButton) _ _ _) (World m s (True,f) p) = World m s (True,f) p
+handle       _                  (World m s (True,f) p) = World m s (True,f) p
 handle (EventKey (MouseButton LeftButton) _ _ (x,y)) w = checkWorld (mainNumberRow (x,y),mainNumberCol (x,y)) w
 handle _ w = w
 
