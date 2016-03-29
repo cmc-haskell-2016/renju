@@ -6,6 +6,9 @@ import Data.Matrix
 
 data State = Black | Red
                      deriving (Show, Eq)
+data W a = W a | Tie | None
+
+type Win = W State
                
 type Cell = Maybe State 
 
@@ -14,7 +17,7 @@ type Field = Matrix Cell
 data World = World
           { field :: Field        -- матрица значений
           , state :: State        -- чей ход
-          , win :: (Bool,Cell)    -- флаг конца игры
+          , win :: Win    -- флаг конца игры
           , pic :: [Picture]      -- загруженные изображения
           }
 
@@ -52,7 +55,7 @@ main
    pic4 <- loadBMP "img/4.bmp"
    pic5 <- loadBMP "img/5.bmp"
    pic6 <- loadBMP "img/texture.bmp"
-   go (World (matrixFiling sizeField) Black (False,Just Black) [pic1,pic2,pic3,pic4,pic5,pic6])
+   go (World (matrixFiling sizeField) Black None [pic1,pic2,pic3,pic4,pic5,pic6])
 
 --запуск игры
 go :: World -> IO ()
@@ -75,16 +78,16 @@ convert (World m _ w p)  = Pictures $
                            mainDrawField m
 
 --отрисовка img
-drawPic :: (Bool,Cell) -> [Picture] -> [Picture]
-drawPic (True,Just Black) p  = [Translate offsetX (offsetY + 1) $ p !! 5
+drawPic :: Win -> [Picture] -> [Picture]
+drawPic (W Black) p  = [Translate offsetX (offsetY + 1) $ p !! 5
                                ,Translate offsetX (offsetY + 270) $ p !! 0
                                ,Translate offsetX (offsetY + 220) $ p !! 2]
 
-drawPic (True,Just Red)   p  = [Translate offsetX (offsetY + 1) $ p !! 5
+drawPic (W Red)   p  = [Translate offsetX (offsetY + 1) $ p !! 5
                                ,Translate offsetX (offsetY + 270) $ p !! 0
                                ,Translate offsetX (offsetY + 220) $ p !! 1]
 
-drawPic (True,Nothing)    p  = [Translate offsetX (offsetY + 1) $ p !! 5
+drawPic (Tie)    p  = [Translate offsetX (offsetY + 1) $ p !! 5
                                ,Translate offsetX (offsetY + 270) $ p !! 0
                                ,Translate offsetX (offsetY + 220) $ p !! 3]
 
@@ -181,7 +184,8 @@ drawLastCell pos_x pos_y (Just Red)       =       [Translate
 
 --обработка внешних событий
 handle :: Event -> World -> World
-handle       _                  (World m s (True,f) p) = World m s (True,f) p
+handle       _                  (World m s (W Black) p) = World m s (W Black) p
+handle       _                  (World m s (W Red) p) = World m s (W Red) p
 handle (EventKey (MouseButton LeftButton) _ _ (x,y)) w = checkWorld (mainNumberRow (x,y),mainNumberCol (x,y)) w
 handle _ w = w
 
@@ -192,7 +196,7 @@ checkWorld (_,0) m = m
 checkWorld coord (World m s l p) | m ! coord == Nothing  =  World
                                                            (putIn coord s m)
                                                            (inverseState s)
-                                                           (changeState (gameRules coord (putIn coord s m)) s) 
+                                                            (gameRules coord s (putIn coord s m))
                                                             p
                                  | otherwise             =  World m s l p
 
@@ -273,16 +277,16 @@ winFunc (x : (y : xs)) ac | x == y && (x /= Nothing) = winFunc (y : xs) (ac + 1)
 winFunc _ _ = False
 
 --Определяет, есть ли выигрыш в игре
--- 0 никто 1 победа 2 доска заполнена
+--None - никто, Tie - полностью заполнена, иначе победитель (W Black |W Red)
 
-gameRules :: (Int,Int) -> Matrix Cell -> Int
-gameRules (x,y) m | winner ( getNeighDiagRight (x,y) m ) ||
+gameRules :: (Int,Int) -> State -> Matrix Cell -> Win
+gameRules (x,y) s m | winner ( getNeighDiagRight (x,y) m ) ||
                     winner ( getNeighDiagLeft (x,y) m ) || 
                     winner ( getNeighRow (x,y) m ) ||
                     winner ( getNeighCol (x,y) m ) 
-                    = 1
-                  | fullBoard (toList m) = 2
-                  | otherwise = 0
+                    = (W s)
+                  | fullBoard (toList m) = Tie
+                  | otherwise = None
 
 --заполнена ли доска
 
@@ -290,13 +294,6 @@ fullBoard :: [Cell] -> Bool
 fullBoard [] = True
 fullBoard (Nothing : _) = False
 fullBoard l = fullBoard (tail l)
-
---изменяет состояние в случае выигрыша/ничьей
-
-changeState :: Int -> State -> (Bool,Maybe State)
-changeState 1 m = (True,Just m)
-changeState 2 _ = (True,Nothing)
-changeState _ _ = (False, Just Black)
 
 
 
