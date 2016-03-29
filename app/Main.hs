@@ -184,7 +184,8 @@ drawLastCell pos_x pos_y (Just Red)       =       [Translate
 
 --обработка внешних событий
 handle :: Event -> World -> World
-handle       _                  (World m s (W _) p) = World m s (W Black) p
+handle       _                  (World m s (W Red) p) = World m s (W Red) p
+handle       _                  (World m s (W Black) p) = World m s (W Black) p
 handle (EventKey (MouseButton LeftButton) _ _ (x,y)) w = checkWorld (mainNumberRow (x,y),mainNumberCol (x,y)) w
 handle _ w = w
 
