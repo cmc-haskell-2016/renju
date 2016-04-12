@@ -19,6 +19,7 @@ data World = World
           , state :: State        -- чей ход
           , win :: Win    -- флаг конца игры
           , pic :: [Picture]      -- загруженные изображения
+          , back :: Maybe World 
           }
 
 --размер ячейки
@@ -55,11 +56,11 @@ main
    pic4 <- loadBMP "img/4.bmp"
    pic5 <- loadBMP "img/5.bmp"
    pic6 <- loadBMP "img/texture.bmp"
-   go (World (matrixFiling sizeField) Black None [pic1,pic2,pic3,pic4,pic5,pic6])
+   go (World (matrixFiling sizeField) Black None [pic1,pic2,pic3,pic4,pic5,pic6] Nothing)
 
 --запуск игры
 go :: World -> IO ()
-go world = play (InWindow "Game rejnzu" (500,500) (0,0)) 
+go world = play (InWindow "Game Rejnzu" (500,500) (0,0)) 
                white 
                0
                world 
@@ -73,7 +74,7 @@ update _ w = w
 
 --переводит внутреннее представление мира в картинку
 convert :: World -> Picture
-convert (World m _ w p)  = Pictures $
+convert (World m _ w p _)  = Pictures $
                            drawPic w p ++
                            mainDrawField m
 
@@ -184,21 +185,28 @@ drawLastCell pos_x pos_y (Just Red)       =       [Translate
 
 --обработка внешних событий
 handle :: Event -> World -> World
-handle       _                  (World m s (W Red) p) = World m s (W Red) p
-handle       _                  (World m s (W Black) p) = World m s (W Black) p
+handle (EventKey (SpecialKey KeySpace) Down _ _) w =  getback w
+handle       _                  (World m s (W Red) p b) = World m s (W Red) p b
+handle       _                  (World m s (W Black) p b) = World m s (W Black) p b
 handle (EventKey (MouseButton LeftButton) _ _ (x,y)) w = checkWorld (mainNumberRow (x,y),mainNumberCol (x,y)) w
 handle _ w = w
+
+--
+getback :: World -> World
+getback (World m s w p Nothing) = (World m s w p Nothing)
+getback (World _ _ _ _ (Just b)) = b 
 
 --обрабочик мира
 checkWorld :: (Int,Int) -> World -> World
 checkWorld (0,_) m = m
 checkWorld (_,0) m = m
-checkWorld coord (World m s l p) | m ! coord == Nothing  =  World
+checkWorld coord (World m s l p b) | m ! coord == Nothing  =  World
                                                            (putIn coord s m)
                                                            (inverseState s)
                                                             (gameRules coord s (putIn coord s m))
                                                             p
-                                 | otherwise             =  World m s l p
+                                                            (Just (World m s l p b))
+                                 | otherwise             =  World m s l p b
 
 --получение номера столбца
 mainNumberCol :: (Float,Float) -> Int
