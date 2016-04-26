@@ -3,6 +3,7 @@ module Main where
 import Graphics.Gloss
 import Graphics.Gloss.Interface.Pure.Game
 import Data.Matrix
+import System.IO.Unsafe
 
 data State = Black | Red
                      deriving (Show, Eq)
@@ -74,6 +75,17 @@ go world = play (InWindow "Game Rejnzu" (500,500) (0,0))
                handle
                update
 
+
+--загрузка из файла
+loadFile :: IO String
+loadFile = do
+           file <- readFile "save/save.txt"
+           fail "error to open file"
+           return file
+
+loadGame :: Matrix Cell
+loadGame = (unsafePerformIO loadFile)
+
 --изменяет таймер
 update ::Float -> World -> World
 update _ (World a state c d e (x,y)) | (x == 0) || (y == 0) = (World a state c d e (x,y))
@@ -100,7 +112,7 @@ time (x,y) p = zipWith (\ z dx -> translate (offsetX + dx) (offsetY + (fromInteg
              where 
              c1         = (fromIntegral sizeField) / 2 * sizeCell - 35
              c2         = - c1 - 50
-             c3         = c1 + 30 
+             c3         = c1 + 20
              c4         = c2 + 30
 
 --отрисовка img
@@ -216,7 +228,7 @@ checkWorld coord (World m s l p b t) | m ! coord == Nothing  =  World
                                                             p
                                                             (Just (World m s l p b t))
                                                             t
-                                 | otherwise             =  World m s l p b t
+                                     | otherwise             =  World m s l p b t
 
 --получение номера столбца
 mainNumberCol :: Point -> Int
