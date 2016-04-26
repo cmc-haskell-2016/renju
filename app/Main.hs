@@ -8,18 +8,22 @@ data State = Black | Red
                      deriving (Show, Eq)
 data W a = W a | Tie | None
 
+data Diagonal = L | R
+
 type Win = W State
                
 type Cell = Maybe State 
 
 type Field = Matrix Cell
+type PointI = (Int,Int)
 
 data World = World
           { field :: Field        -- матрица значений
           , state :: State        -- чей ход
-          , win :: Win    -- флаг конца игры
+          , win :: Win            -- флаг конца игры
           , pic :: [Picture]      -- загруженные изображения
-          , back :: Maybe World 
+          , back :: Maybe World   -- отмена хода (прошлый мир)
+          , timer :: PointI       -- таймер для обоих игроков 
           }
 
 --размер ячейки
@@ -50,92 +54,91 @@ getRow n m = [m ! (i,j) | i <- [n]
 main :: IO ()
 main    
  = do
-   pic1 <- loadBMP "img/1.bmp"
-   pic2 <- loadBMP "img/2.bmp"
-   pic3 <- loadBMP "img/3.bmp"
-   pic4 <- loadBMP "img/4.bmp"
-   pic5 <- loadBMP "img/5.bmp"
-   pic6 <- loadBMP "img/texture.bmp"
-   go (World (matrixFiling sizeField) Black None [pic1,pic2,pic3,pic4,pic5,pic6] Nothing)
+   rejnzu     <- loadBMP "img/rejnzu.bmp"
+   red_win    <- loadBMP "img/red_win.bmp"
+   black_win  <- loadBMP "img/black_win.bmp"
+   tie        <- loadBMP "img/tie.bmp"
+   play_game  <- loadBMP "img/play_game.bmp"
+   texture    <- loadBMP "img/texture.bmp"
+   go (World (matrixFiling sizeField) Black None [rejnzu,red_win,black_win,tie,play_game,texture] Nothing (20,20))
 
 --запуск игры
 go :: World -> IO ()
 go world = play (InWindow "Game Rejnzu" (500,500) (0,0)) 
                white 
-               0
+               1
                world 
                convert 
                handle
                update
 
---ничего не делает
+--изменяет таймер
 update ::Float -> World -> World
-update _ w = w 
+update _ (World a state c d e (x,y)) | (x == 0) || (y == 0) = (World a state c d e (x,y))
+                                     | (x == 1) = (World a state (W Red) d e (0,y))
+                                     | (y == 1) = (World a state (W Black) d e (x,0))
+                                     | otherwise            = (World a state c d e $ f state)
+                                     where
+                                     f Red     = (x, y-1)
+                                     f Black   = (x-1, y)
 
 --переводит внутреннее представление мира в картинку
 convert :: World -> Picture
-convert (World m _ w p _)  = Pictures $
-                           drawPic w p ++
+convert (World m _ w p _ t)  = Pictures $
+                           drawPic w p ++ 
+                           time t      ++ 
                            mainDrawField m
+
+time :: PointI -> [Picture]
+time (x,y) = zipWith (\ z dx -> translate (offsetX + dx) (offsetY + (fromIntegral sizeField) / 2 * sizeCell) $ Scale 0.3 0.3 $ Text $ show z)
+             [x,y] [c2,c1]
+             where 
+             c1         = (fromIntegral sizeField) / 2 * sizeCell - 35
+             c2         = - c1 - 50
 
 --отрисовка img
 drawPic :: Win -> [Picture] -> [Picture]
-drawPic (W Black) p  = [Translate offsetX (offsetY + 1) $ p !! 5
-                               ,Translate offsetX (offsetY + 270) $ p !! 0
-                               ,Translate offsetX (offsetY + 220) $ p !! 2]
-
-drawPic (W Red)   p  = [Translate offsetX (offsetY + 1) $ p !! 5
-                               ,Translate offsetX (offsetY + 270) $ p !! 0
-                               ,Translate offsetX (offsetY + 220) $ p !! 1]
-
-drawPic (Tie)    p  = [Translate offsetX (offsetY + 1) $ p !! 5
-                               ,Translate offsetX (offsetY + 270) $ p !! 0
-                               ,Translate offsetX (offsetY + 220) $ p !! 3]
-
-drawPic       _           p  = [Translate offsetX (offsetY + 1) $ p !! 5
-                               ,Translate (offsetX + 10) (offsetY + 220) $ p !! 4
-                               ,Translate offsetX (offsetY + 270) $ p !! 0]
+drawPic x p = case x of
+              None ->         zipWith(\dy i -> translate offsetX (offsetY + dy) $ p !! i)
+                                      [1,220,270] 
+                                      [5,4,0]
+                                
+              _     ->        zipWith(\dy i -> translate offsetX (offsetY + dy) $ p !! i)
+                                     [1,270,220]
+                                     [5,0,msg x]
+              where
+                  msg (W Black) = 2
+                  msg (W Red)   = 1
+                  msg (Tie)     = 3 
 
 --отрисовка одной ячейки (позиции - положение квадратика относительно центра) и левой верхней фишечки, если она есть
 drawCell :: Float -> Float -> Cell -> [Picture]
-drawCell pos_x pos_y Nothing      =      [Translate 
-                                                  pos_x 
-                                                  pos_y $ 
-                                                  rectangleWire sizeCell sizeCell]
-
-drawCell pos_x pos_y (Just Black) =      [Translate 
-                                                  pos_x 
-                                                  pos_y $ 
-                                                  rectangleWire sizeCell sizeCell
+drawCell pos_x pos_y s = case s of
+                             Nothing -> [reckWire] 
+                             (Just x) -> [reckWire
                                          ,Translate 
-                                                  (pos_x - (sizeCell / 2)) 
-                                                  (pos_y + (sizeCell / 2)) $ 
-                                                   Color black $ circleSolid (sizeCell / 2)] 
-
-drawCell pos_x pos_y (Just Red)   =      [Translate 
-                                                  pos_x 
-                                                  pos_y $ 
-                                                  rectangleWire sizeCell sizeCell 
-                                         ,Translate 
-                                                  (pos_x - (sizeCell / 2)) 
-                                                  (pos_y + (sizeCell / 2)) $ 
-                                                   Color red $ circleSolid (sizeCell / 2)]
-                  
+                                         (pos_x - (sizeCell / 2))
+                                         (pos_y + (sizeCell / 2)) $
+                                         Color (col x) $ circleSolid (sizeCell / 2)]
+                         where
+                         reckWire =  translate 
+                                     pos_x 
+                                     pos_y $
+                                     rectangleWire sizeCell sizeCell
+                         col Black = black
+                         col Red   = red
 
 --отрисовка строки
 --pos_x pos_y положение самого первого квадратика строки относительно центра
 
 drawRow :: Float -> Float -> [Cell] -> [Picture]
-
-drawRow pos_x pos_y [(Just Black)]    =     [Translate 
+drawRow pos_x pos_y [(Just x)] = [Translate 
                                                    (pos_x - (sizeCell / 2)) 
                                                    (pos_y + (sizeCell / 2)) $
-                                                   Color black $ circleSolid (sizeCell / 2)]
-
-drawRow pos_x pos_y [(Just Red)]      =     [Translate 
-                                                   (pos_x - (sizeCell / 2)) 
-                                                   (pos_y + (sizeCell / 2)) $
-                                                   Color red   $ circleSolid (sizeCell / 2)]
+                                                   Color (col x) $ circleSolid (sizeCell / 2)]
+                                 where 
+                                 col Black = black
+                                 col Red   = red
 drawRow _     _     [Nothing]         =     [Blank]
 
 drawRow pos_x pos_y l                 =     (drawCell pos_x pos_y $ head l) 
@@ -174,64 +177,64 @@ drawLastRow pos_x pos_y l          =      (drawLastCell
 --отрисовка фишки последней строки (не рисуе квадратик)
 drawLastCell :: Float -> Float -> Cell -> [Picture]
 drawLastCell _ _ Nothing                  =       [Blank]
-drawLastCell pos_x pos_y (Just Black)     =       [Translate 
+drawLastCell pos_x pos_y (Just x)         =       [Translate 
                                                          pos_x 
                                                          pos_y $ 
-                                                         Color black $ circleSolid (sizeCell / 2)]
-drawLastCell pos_x pos_y (Just Red)       =       [Translate 
-                                                         pos_x 
-                                                         pos_y $ 
-                                                         Color red $ circleSolid (sizeCell / 2)]
+                                                         Color (col x) $ circleSolid (sizeCell / 2)]
+                                          where
+                                          col Black = black
+                                          col Red = red
 
 --обработка внешних событий
 handle :: Event -> World -> World
 handle (EventKey (SpecialKey KeySpace) Down _ _) w =  getback w
-handle       _                  (World m s (W Red) p b) = World m s (W Red) p b
-handle       _                  (World m s (W Black) p b) = World m s (W Black) p b
+handle       _                  (World m s (W Red) p b t) = World m s (W Red) p b t
+handle       _                  (World m s (W Black) p b t) = World m s (W Black) p b t
 handle (EventKey (MouseButton LeftButton) _ _ (x,y)) w = checkWorld (mainNumberRow (x,y),mainNumberCol (x,y)) w
 handle _ w = w
 
 --
 getback :: World -> World
-getback (World m s w p Nothing) = (World m s w p Nothing)
-getback (World _ _ _ _ (Just b)) = b 
+getback (World m s w p Nothing t) = (World m s w p Nothing t)
+getback (World _ _ _ _ (Just b) t) = b 
 
 --обрабочик мира
-checkWorld :: (Int,Int) -> World -> World
+checkWorld :: PointI -> World -> World
 checkWorld (0,_) m = m
 checkWorld (_,0) m = m
-checkWorld coord (World m s l p b) | m ! coord == Nothing  =  World
+checkWorld coord (World m s l p b t) | m ! coord == Nothing  =  World
                                                            (putIn coord s m)
                                                            (inverseState s)
                                                             (gameRules coord s (putIn coord s m))
                                                             p
-                                                            (Just (World m s l p b))
-                                 | otherwise             =  World m s l p b
+                                                            (Just (World m s l p b t))
+                                                            t
+                                 | otherwise             =  World m s l p b t
 
 --получение номера столбца
-mainNumberCol :: (Float,Float) -> Int
+mainNumberCol :: Point -> Int
 mainNumberCol x                          = numberCol
                                            x
                                            (offsetX - sizeCell - fromIntegral((sizeField - 1) `div` 2) * sizeCell) 
                          
 
-numberCol :: (Float,Float) -> Float -> Int
+numberCol :: Point -> Float -> Int
 numberCol (x,_) n | x < n || x > (n + fromIntegral(sizeField) * sizeCell) = 0
                   | otherwise                                             = div sizeField 2 + 1 + div (round (x - offsetX)) (round sizeCell)
 
 --получение номера строки
-mainNumberRow :: (Float,Float) -> Int
+mainNumberRow :: Point -> Int
 mainNumberRow x = numberRow
                           x
                          (offsetY + sizeCell + fromIntegral((sizeField - 1) `div` 2) * sizeCell) 
                          
 
-numberRow :: (Float,Float) -> Float -> Int
+numberRow :: Point -> Float -> Int
 numberRow (_,y) n | y > n || y < (n - fromIntegral(sizeField) * sizeCell) = 0
                   | otherwise                                             = div sizeField 2 - div (round ( y - offsetY)) (round sizeCell)
 
 --заполнение ячейки матрицы
-putIn :: (Int,Int) -> State -> Matrix Cell -> Matrix Cell
+putIn :: PointI -> State -> Matrix Cell -> Matrix Cell
 putIn (a,b) Black m = setElem (Just Black) (a,b) m
 putIn (a,b) Red m   = setElem (Just Red) (a,b) m 
 
@@ -241,37 +244,31 @@ inverseState Black = Red
 inverseState Red = Black
 
 --получение окрестности 5 для строки
-getNeighRow :: (Int, Int) -> Matrix Cell -> [Cell]
+getNeighRow :: PointI -> Matrix Cell -> [Cell]
 getNeighRow (a,b) m = [m ! (i,j) | i <- [a]
                           , j <- [(b - 4) .. (b + 4)]
                           , j >= 1 && j <= (ncols m)]
 
 --получение окрестности 5 для столбца
-getNeighCol :: (Int, Int) -> Matrix Cell -> [Cell]
+getNeighCol :: PointI -> Matrix Cell -> [Cell]
 getNeighCol (a,b) m = [m ! (i,j) | i <- [(a - 4) .. (a + 4)]
                           , j <- [b]
                           , i >= 1 && i <= (nrows m)]
 
 --получение окрестности 5 по диагонали влево
 
-getNeighDiagLeft :: (Int, Int) -> Matrix Cell -> [Cell]
-getNeighDiagLeft (a,b) m = diagLeft (a,b) m (a + 4) (b + 4)
+getNeighDiag :: PointI -> Matrix Cell -> Diagonal -> [Cell]
+getNeighDiag (a,b) m d = diag (a,b) m (a + 4) (b + 4) d
 
-diagLeft :: (Int, Int) -> Matrix Cell -> Int -> Int -> [Cell]
-diagLeft (a,b) m i j 
+
+diag :: PointI -> Matrix Cell -> Int -> Int -> Diagonal -> [Cell]
+diag (a,b) m i j d
                      | i == (a - 5) = []
-                     | i >= 1 && i <= (nrows m) && j>=1 && j <= (ncols m) = m ! (i,j) : (diagLeft (a,b) m (i - 1) (j - 1))
-                     | otherwise = diagLeft (a,b) m (i - 1) (j - 1)
-
---получение окрестности 5 по диагонали вправо
-
-getNeighDiagRight :: (Int, Int) -> Matrix Cell -> [Cell]
-getNeighDiagRight (a,b) m = diagRight (a,b) m (a + 4) (b - 4)
-
-diagRight :: (Int, Int) -> Matrix Cell -> Int -> Int -> [Cell]
-diagRight (a,b) m i j | i == (a - 5) = []
-                      | i >= 1 && i <= (nrows m) && j>=1 && j <= (ncols m) = m ! (i,j) : (diagRight (a,b) m (i - 1) (j + 1))
-                      | otherwise = diagRight (a,b) m (i - 1) (j + 1)
+                     | i >= 1 && i <= (nrows m) && j>=1 && j <= (ncols m) = m ! (i,j) : (diag (a,b) m (i - 1) (lr d) d)
+                     | otherwise = diag (a,b) m (i - 1) (lr d) d
+                     where
+                     lr L = j - 1
+                     lr R = j + 1
 
 --по [Cell] определяет, есть ли выигрыш
 
@@ -287,11 +284,12 @@ winFunc _ _ = False
 --Определяет, есть ли выигрыш в игре
 --None - никто, Tie - полностью заполнена, иначе победитель (W Black |W Red)
 
-gameRules :: (Int,Int) -> State -> Matrix Cell -> Win
-gameRules (x,y) s m | winner ( getNeighDiagRight (x,y) m ) ||
-                    winner ( getNeighDiagLeft (x,y) m ) || 
-                    winner ( getNeighRow (x,y) m ) ||
-                    winner ( getNeighCol (x,y) m ) 
+gameRules :: PointI -> State -> Matrix Cell ->Win
+gameRules (x,y) s m
+                  | winner ( getNeighDiag (x,y) m L) || 
+                      winner ( getNeighDiag (x,y) m R) || 
+                      winner ( getNeighRow (x,y) m ) ||
+                      winner ( getNeighCol (x,y) m ) 
                     = (W s)
                   | fullBoard (toList m) = Tie
                   | otherwise = None
