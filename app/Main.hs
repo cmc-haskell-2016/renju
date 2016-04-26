@@ -60,7 +60,9 @@ main
    tie        <- loadBMP "img/tie.bmp"
    play_game  <- loadBMP "img/play_game.bmp"
    texture    <- loadBMP "img/texture.bmp"
-   go (World (matrixFiling sizeField) Black None [rejnzu,red_win,black_win,tie,play_game,texture] Nothing (20,20))
+   timer_b    <- loadBMP "img/b.bmp"
+   timer_r    <- loadBMP "img/r.bmp"
+   go (World (matrixFiling sizeField) Black None [rejnzu,red_win,black_win,tie,play_game,texture, timer_b,timer_r] Nothing (20,20))
 
 --запуск игры
 go :: World -> IO ()
@@ -86,15 +88,20 @@ update _ (World a state c d e (x,y)) | (x == 0) || (y == 0) = (World a state c d
 convert :: World -> Picture
 convert (World m _ w p _ t)  = Pictures $
                            drawPic w p ++ 
-                           time t      ++ 
+                           time t p    ++ 
                            mainDrawField m
 
-time :: PointI -> [Picture]
-time (x,y) = zipWith (\ z dx -> translate (offsetX + dx) (offsetY + (fromIntegral sizeField) / 2 * sizeCell) $ Scale 0.3 0.3 $ Text $ show z)
+time :: PointI -> [Picture] -> [Picture]
+time (x,y) p = zipWith (\ z dx -> translate (offsetX + dx) (offsetY + (fromIntegral sizeField) / 2 * sizeCell) $ Scale 0.3 0.3 $ Text $ show z)
              [x,y] [c2,c1]
+             ++
+             zipWith (\ dx i -> translate (offsetX + dx) (offsetY + (fromIntegral sizeField) / 2 * sizeCell + 50) $ p !! i)
+             [c4,c3] [6,7]
              where 
              c1         = (fromIntegral sizeField) / 2 * sizeCell - 35
              c2         = - c1 - 50
+             c3         = c1 + 30 
+             c4         = c2 + 30
 
 --отрисовка img
 drawPic :: Win -> [Picture] -> [Picture]
