@@ -11,6 +11,16 @@ data W a = W a | Tie | None
 
 data Diagonal = L | R
 
+data Hard = Easy | Hard
+data Mode = Hum_Comp | Hum_Hum
+data Time = Limit | No_limit
+type Pause = Bool
+
+
+data MouseEvent = Click | Move
+
+data Menu = Main {anum :: Int} | Opt | Empty
+
 type Win = W State
                
 type Cell = Maybe State 
@@ -19,12 +29,14 @@ type Field = Matrix Cell
 type PointI = (Int,Int)
 
 data World = World
-          { field :: Field        -- матрица значений
-          , state :: State        -- чей ход
-          , win :: Win            -- флаг конца игры
-          , pic :: [Picture]      -- загруженные изображения
-          , back :: Maybe World   -- отмена хода (прошлый мир)
-          , timer :: PointI       -- таймер для обоих игроков 
+          { field:: Field                 -- матрица значений
+          , state:: State                 -- чей ход
+          , win  :: Win                   -- флаг конца игры
+          , pic  :: [Picture]             -- загруженные изображения
+          , back :: Maybe World           -- отмена хода (прошлый мир)
+          , timer:: PointI                -- таймер для обоих игроков 
+          , menu :: Menu                  -- объекты меню
+          , mode :: (Time,Hard,Mode,Pause)--состояния игры
           }
 
 --размер ячейки
@@ -55,15 +67,71 @@ getRow n m = [m ! (i,j) | i <- [n]
 main :: IO ()
 main    
  = do
-   rejnzu     <- loadBMP "img/rejnzu.bmp"
-   red_win    <- loadBMP "img/red_win.bmp"
-   black_win  <- loadBMP "img/black_win.bmp"
-   tie        <- loadBMP "img/tie.bmp"
-   play_game  <- loadBMP "img/play_game.bmp"
-   texture    <- loadBMP "img/texture.bmp"
-   timer_b    <- loadBMP "img/b.bmp"
-   timer_r    <- loadBMP "img/r.bmp"
-   go (World (matrixFiling sizeField) Black None [rejnzu,red_win,black_win,tie,play_game,texture, timer_b,timer_r] Nothing (20,20))
+   rejnzu     <- loadBMP "img/rejnzu.bmp"  --0
+   red_win    <- loadBMP "img/red_win.bmp" --1
+   black_win  <- loadBMP "img/black_win.bmp"   --2
+   tie        <- loadBMP "img/tie.bmp"         --3
+   play_game  <- loadBMP "img/play_game.bmp"   --4
+   texture    <- loadBMP "img/texture.bmp"     --5
+   timer_b    <- loadBMP "img/b.bmp"           --6
+   timer_r    <- loadBMP "img/r.bmp"           --7
+   back       <- loadBMP "img/bmp/back.bmp"    --8
+   button     <- loadBMP "img/bmp/button.bmp"  --9
+   fon        <- loadBMP "img/bmp/fon.bmp"    --10
+   hard       <- loadBMP "img/bmp/hard.bmp"   --11
+   hardness   <- loadBMP "img/bmp/hardness.bmp"--12
+   load       <- loadBMP "img/bmp/load.bmp"   --13
+   menu       <- loadBMP "img/bmp/menu.bmp"   --14
+   mode       <- loadBMP "img/bmp/mode.bmp"   --15
+   ok         <- loadBMP "img/bmp/ok.bmp"     --16
+   options    <- loadBMP "img/bmp/options.bmp"--17
+   options_1  <- loadBMP "img/bmp/options_1.bmp"--18
+   save       <- loadBMP "img/bmp/save.bmp"     --19
+   time       <- loadBMP "img/bmp/time.bmp"     --20
+   time_2     <- loadBMP "img/bmp/time_2.bmp"   --21
+   time_text  <- loadBMP "img/bmp/time_text.bmp"--22
+   x          <- loadBMP "img/bmp/x.bmp"        --23
+   easy       <- loadBMP "img/bmp/easy.bmp"     --24
+   h_h        <- loadBMP "img/bmp/h.bmp"        --25
+   h_c        <- loadBMP "img/bmp/h_c.bmp"      --26
+   
+             
+   go (World (matrixFiling sizeField) Black None [rejnzu,red_win,black_win,tie,play_game,texture,timer_b,timer_r,back,button,fon,hard,hardness,load,menu,mode,ok,options,options_1,save,time,time_2,time_text,x, easy,h_h,h_c] Nothing (20,20) Empty (No_limit,Easy,Hum_Hum,False))
+
+drawMenu :: [Picture] -> Menu -> [Picture]
+drawMenu p (Main 0) = drawMain p
+drawMenu p (Main n) = (zipWith (\dy i -> translate offsetX (offsetY + dy) $ p !! i)
+                              [0,c]
+                              [10,9]) ++ (tail $ drawMain p)
+                      where
+                      c = (fromIntegral sizeField) / 2 * sizeCell - 140 - 60 * fromIntegral(n - 1)
+drawMenu p Opt = drawOpt p
+drawMenu p _ = [Blank]
+
+
+drawMain :: [Picture] -> [Picture]
+drawMain p =  [translate offsetX offsetY $ p !! 10,
+              translate offsetX (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 60 ) $ p !! 14,
+              translate offsetX (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 140 ) $ p !! 13,
+              translate offsetX (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 200 ) $ p !! 19,
+              translate offsetX (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 260 ) $ p !! 17,
+              translate (offsetX + 170) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 50) $ p !! 23]
+
+drawOpt :: [Picture] -> [Picture]
+drawOpt   p = [translate offsetX offsetY $ p !! 10,
+              translate (offsetX + 170) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 50 ) $ p !! 23,
+              translate offsetX (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 60 ) $ p !! 18,
+              translate (offsetX - 120 ) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 120 ) $ p !! 22,
+              translate (offsetX + 35) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 120 ) $ p !! 20,
+              translate (offsetX + 130) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 120 ) $ p !! 21,
+              translate (offsetX - 100 ) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 200 ) $ p !! 12,
+              translate (offsetX + 35 ) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 200 ) $ p !! 11,
+              translate (offsetX + 130 ) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 200 ) $ p !! 24,
+              translate (offsetX + 35 ) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 200 ) $ p !! 16,
+              translate (offsetX - 110 ) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 280 ) $ p !! 15,
+              translate (offsetX + 35 ) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 280 ) $ p !! 25,
+              translate (offsetX + 130 ) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 280 ) $ p !! 26,
+              translate (offsetX - 150 ) (offsetY + (fromIntegral sizeField) / 2 * sizeCell - 330 ) $ p !! 8]
 
 --запуск игры
 go :: World -> IO ()
@@ -112,20 +180,23 @@ loadGame = (unsafePerformIO loadFile)
 
 --изменяет таймер
 update ::Float -> World -> World
-update _ (World a state c d e (x,y)) | (x == 0) || (y == 0) = (World a state c d e (x,y))
-                                     | (x == 1) = (World a state (W Red) d e (0,y))
-                                     | (y == 1) = (World a state (W Black) d e (x,0))
-                                     | otherwise            = (World a state c d e $ f state)
-                                     where
-                                     f Red     = (x, y-1)
-                                     f Black   = (x-1, y)
+update _ (World a state c d e (x,y) m (x1,y1,z1,p))  | (p == True) = (World a state c d e (x,y) m (x1,y1,z1,p))
+                                                     | (x == 0) || (y == 0) = (World a state c d e (x,y) m (x1,y1,z1,p))
+                                                     | (x == 1) = (World a state (W Red) d e (0,y) m (x1,y1,z1,p))
+                                                     | (y == 1) = (World a state (W Black) d e (x,0) m (x1,y1,z1,p))
+                                                     | otherwise            = (World a state c d e (f state) m (x1,y1,z1,p))
+                                                     where
+                                                     f Red     = (x, y-1)
+                                                     f Black   = (x-1, y)
 
 --переводит внутреннее представление мира в картинку
 convert :: World -> Picture
-convert (World m _ w p _ t)  = Pictures $
+convert (World m _ w p _ t menu (ti,ha,mo,pa)) =
+                           Pictures $
                            drawPic w p ++ 
                            time t p    ++ 
-                           mainDrawField m
+                           mainDrawField m ++
+                           drawMenu p menu 
 
 time :: PointI -> [Picture] -> [Picture]
 time (x,y) p = zipWith (\ z dx -> translate (offsetX + dx) (offsetY + (fromIntegral sizeField) / 2 * sizeCell) $ Scale 0.3 0.3 $ Text $ show z)
@@ -230,29 +301,61 @@ drawLastCell pos_x pos_y (Just x)         =       [Translate
 
 --обработка внешних событий
 handle :: Event -> World -> World
+handle (EventKey (Char 'z') Down _ _) (World a b c d e f Empty (x,y,z,p)) = World a b c d e f (Main 0) (x,y,z,True)
+handle (EventMotion (x,y)) (World a b c d e f (Main g) (x1,y1,z1,p)) = handle_menu Move (x,y) (World a b c d e f (Main g) (x1,y1,z1,True)) 
+handle (EventKey (MouseButton LeftButton) Down _ (x,y)) (World a b c d e f (Main g) (x1,y1,z1,p)) = handle_menu Click (x,y) (World a b c d e f (Main g) (x1,y1,z1,True))
+handle (EventKey (MouseButton LeftButton) Down _ (x,y)) (World a b c d e f Opt (x1,y1,z1,p)) = handle_menu Click (x,y) (World a b c d e f Opt (x1,y1,z1,True))
+
+handle _ (World a b c d e f g (x,y,z,True)) = (World a b c d e f g (x,y,z,True))
 handle (EventKey (SpecialKey KeySpace) Down _ _) w =  getback w
-handle       _                  (World m s (W Red) p b t) = World m s (W Red) p b t
-handle       _                  (World m s (W Black) p b t) = World m s (W Black) p b t
-handle (EventKey (MouseButton LeftButton) _ _ (x,y)) w = checkWorld (mainNumberRow (x,y),mainNumberCol (x,y)) w
+handle       _                  (World m s (W Red) p b t menu (x,y,z,v)) = World m s (W Red) p b t menu (x,y,z,v)
+handle       _                  (World m s (W Black) p b t menu (x,y,z,v)) = World m s (W Black) p b t menu (x,y,z,v)
+handle (EventKey (MouseButton LeftButton) Down _ (x,y)) w = checkWorld (mainNumberRow (x,y),mainNumberCol (x,y)) w
 handle _ w = w
+
+handle_menu :: MouseEvent -> Point -> World -> World
+handle_menu event (x,y) (World a b c d e f (Main g) (x1,y1,z1,p)) | (x >= (offsetX - 120) && x <= (offsetX + 120)) && (y >= (-10) && y <= 30) 
+                                                       = case event of
+                                                         Move -> (World a b c d e f (Main 1) (x1,y1,z1,p))
+                                                         Click-> (World a b c d e f (Main 1) (x1,y1,z1,p))
+                                                     | (x >= (offsetX - 120) && x <= (offsetX + 120)) && (y >= (-70) && y <= (-30)) 
+                                                       = case event of
+                                                         Move -> (World a b c d e f (Main 2) (x1,y1,z1,p))
+                                                         Click-> (World a b c d e f (Main 2) (x1,y1,z1,p))
+                                                     | (x >= (offsetX - 120) && x <= (offsetX + 120)) && (y >= (-130) && y <= (-90)) 
+                                                       = case event of
+                                                         Move -> (World a b c d e f (Main 3) (x1,y1,z1,p))
+                                                         Click-> (World a b c d e f Opt (x1,y1,z1,p))
+                                                     |(x >= (offsetX + 150) && x<= (offsetX + 190) && y>=90 && y<=120)
+                                                       = case event of
+                                                         Click->  World a b c d e f Empty (x1,y1,z1,False)
+                                                         Move ->  World a b c d e f (Main g) (x1,y1,z1,p)
+                                                     | otherwise = World a b c d e f (Main g) (x1,y1,z1,p)
+
+
+
+
+
 
 --
 getback :: World -> World
-getback (World m s w p Nothing t) = (World m s w p Nothing t)
-getback (World _ _ _ _ (Just b) t) = b 
+getback (World m s w p Nothing t men x) = (World m s w p Nothing t men x)
+getback (World _ _ _ _ (Just b) t _ _) = b 
 
 --обрабочик мира
 checkWorld :: PointI -> World -> World
 checkWorld (0,_) m = m
 checkWorld (_,0) m = m
-checkWorld coord (World m s l p b t) | m ! coord == Nothing  =  World
+checkWorld coord (World m s l p b t menu (x,y,z,ps)) | m ! coord == Nothing  =  World
                                                            (putIn coord s m)
                                                            (inverseState s)
                                                             (gameRules coord s (putIn coord s m))
                                                             p
-                                                            (Just (World m s l p b t))
+                                                            (Just (World m s l p b t menu (x,y,z,ps)))
                                                             t
-                                     | otherwise             =  World m s l p b t
+                                                            menu
+                                                            (x,y,z,ps)
+                                     | otherwise             =  World m s l p b t menu (x,y,z,ps)
 
 --получение номера столбца
 mainNumberCol :: Point -> Int
