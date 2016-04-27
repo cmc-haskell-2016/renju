@@ -77,13 +77,37 @@ go world = play (InWindow "Game Rejnzu" (500,500) (0,0))
 
 
 --загрузка из файла
-loadFile :: IO String
+loadFile :: IO (Matrix Cell,(State,(String,String)))
 loadFile = do
-           file <- readFile "save/save.txt"
+           file1 <- readFile "save/save_w.txt"
+           file2 <- readFile "save/save_st.txt"
            fail "error to open file"
-           return file
+           return (rec_matrix 1 1 file1 $ matrixFiling sizeField, rec_state file2)
 
-loadGame :: Matrix Cell
+--загрузка матрицы
+rec_matrix :: Int -> Int -> String -> Matrix Cell -> Matrix Cell
+rec_matrix _ _ [] m = m
+rec_matrix i j (x:xs) m             | x == '\n' = rec_matrix (i + 1) 1 xs m
+                                    | x == ' '  = rec_matrix i j xs m 
+                                    | otherwise = rec_matrix i (j + 1) xs (setElem (f x) (i,j) m)
+                                    where
+                                    f '0' = Nothing
+                                    f '1' = (Just Black)
+                                    f '2' = (Just Red)
+--загрузка того, кто ходит и времени
+rec_state :: String -> (State,(String,String))
+rec_state (x:xs)   | x == 'B' = (Black, rec_time (tail xs) [] ("",""))
+                   | x == 'R' = (Red, rec_time (tail xs) [] ("",""))
+
+rec_time :: String -> String -> (String,String) -> (String,String)
+rec_time [] buf s = s
+rec_time (x:xs) buf (a,b)   | x == '\n' = (a,reverse buf)
+                            | x == ' '  = rec_time xs [] (reverse buf,"")
+                            | otherwise = rec_time xs (x:buf) (a,b)
+
+
+
+loadGame :: (Matrix Cell,(State,(String,String)))
 loadGame = (unsafePerformIO loadFile)
 
 --изменяет таймер
