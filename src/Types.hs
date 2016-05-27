@@ -26,17 +26,37 @@ type Field = Matrix Cell
 type PointI = (Int,Int)
 type Point = (Float,Float)
 
-data World = World
-          { field:: Field                 -- матрица значений
-          , state:: State                 -- чей ход
-          , win  :: Win                   -- флаг конца игры
-          , pic  :: [Picture]             -- загруженные изображения
-          , back :: Maybe World           -- отмена хода (прошлый мир)
-          , timer:: PointI                -- таймер для обоих игроков 
+data GameState = GameState
+	  { pic  :: [Picture]             -- загруженные изображения
+	  , back :: Maybe World           -- отмена хода (прошлый мир)
           , menu :: Menu                  -- объекты меню
-          , mode :: (Time,Hard,Mode,Pause)--состояния игры (Ограничение по времени, сложность, Игрок-ПК/Игрок, Пауза)
+          , mode :: (Time,Hard,Mode,Pause)-- состояния игры (Ограничение по времени, сложность, Игрок-ПК/Игрок, Пауза)
           }
 
+data GameLogic = GameLogic
+	  { field:: Field                 -- матрица значений
+          , state:: State                 -- чей ход
+          , win  :: Win                   -- флаг конца игры
+          , timer:: PointI                -- таймер для обоих игроков 
+          }
+
+
+
+ --data World = World
+ --         { field:: Field                 -- матрица значений
+ --         , state:: State                 -- чей ход
+ --         , win  :: Win                   -- флаг конца игры
+ --         , pic  :: [Picture]             -- загруженные изображения
+ --         , back :: Maybe World           -- отмена хода (прошлый мир)
+ --         , timer:: PointI                -- таймер для обоих игроков 
+ --         , menu :: Menu                  -- объекты меню
+ --         , mode :: (Time,Hard,Mode,Pause)-- состояния игры (Ограничение по времени, сложность, Игрок-ПК/Игрок, Пауза)
+ --         }
+
+data World = World 
+	{ gLogic::GameLogic
+	, gState::GameState
+	}
 --размер ячейки
 sizeCell :: Float
 sizeCell = 40.0
@@ -47,8 +67,8 @@ sizeField = 10
 
 --положение центра игровой доски
 offsetX :: Float
-offsetX = 0
+offsetX = 0.0
 
 offsetY :: Float
-offsetY = (-50)
+offsetY = (-50.0)
 

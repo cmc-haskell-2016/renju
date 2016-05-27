@@ -5,23 +5,25 @@ import Data.Matrix
 
 --реалищация функции "отмена хода"
 getback :: World -> World
-getback (World m s w p Nothing t men x) = (World m s w p Nothing t men x)
-getback (World _ _ _ _ (Just b) t _ _) = b 
+getback (World gl (GameState _ (Just b) _ _) ) = b 
+getback w = w
 
---обрабочик мира
-checkWorld :: PointI -> World -> World
-checkWorld (0,_) m = m
-checkWorld (_,0) m = m
-checkWorld coord (World m s l p b t menu (x,y,z,ps)) | m ! coord == Nothing  =  World
-                                                           (putIn coord s m)
-                                                           (inverseState s)
+--
+savePrevWorld::World->GameState->GameState
+savePrevWorld w (GameState p b menu mode) = GameState p (Just w) menu mode
+
+
+
+--logic handler
+checkLogic :: PointI -> GameLogic -> GameLogic
+checkLogic (0,_) m = m
+checkLogic (_,0) m = m
+checkLogic coord (GameLogic m s l t) | m ! coord == Nothing  =  (GameLogic
+                                                            (putIn coord s m)
+                                                            (inverseState s)
                                                             (gameRules coord s (putIn coord s m))
-                                                            p
-                                                            (Just (World m s l p b t menu (x,y,z,ps)))
-                                                            t
-                                                            menu
-                                                            (x,y,z,ps)
-                                     | otherwise             =  World m s l p b t menu (x,y,z,ps)
+                                                            t)
+                                     | otherwise             = (GameLogic m s l t)
 
 --получение номера столбца
 mainNumberCol :: Point -> Int

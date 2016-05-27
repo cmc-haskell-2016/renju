@@ -37,4 +37,4 @@ main
    h_c        <- loadBMP "img/bmp/h_c.bmp"      --26
    
              
-   go (World (matrixFiling sizeField) Black None [rejnzu,red_win,black_win,tie,play_game,texture,timer_b,timer_r,back,button,fon,hard,hardness,load,menu,mode,ok,options,options_1,save,time,time_2,time_text,x, easy,h_h,h_c] Nothing (20,20) Empty (No_limit,Easy,Hum_Hum,False))            
+   go (World (GameLogic (matrixFiling sizeField) Black None (20,20))(GameState [rejnzu,red_win,black_win,tie,play_game,texture,timer_b,timer_r,back,button,fon,hard,hardness,load,menu,mode,ok,options,options_1,save,time,time_2,time_text,x, easy,h_h,h_c] Nothing Empty (No_limit,Easy,Hum_Hum,False)))            

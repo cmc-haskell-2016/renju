@@ -10,7 +10,7 @@ import System.IO.Error (isDoesNotExistError)
 
 --загрузка игры из файла - главная функция
 loadGame :: World -> World
-loadGame (World _ _ c d e _ _ h)= World field state c d e (time1,time2) (Main 1) h
+loadGame (World (GameLogic _ _ c _ ) (GameState d e _ h))= World (GameLogic field state c (time1,time2)) (GameState d e (Main 1) h)
          where
          spisok = unsafePerformIO (loadFile `catch` umolchanie)
          field = fst(spisok)

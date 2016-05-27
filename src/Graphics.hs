@@ -20,20 +20,20 @@ go world = play (InWindow "Game Rejnzu" (500,500) (0,0))
 
 --изменяет таймер
 update ::Float -> World -> World
-update _ (World a b (W x) d e f g h) = (World a b (W x) d e f g h)
-update _ (World a state c d e (x,y) m (Limit,y1,z1,p)) | (p == True) = (World a state c d e (x,y) m (Limit,y1,z1,p))
-                                                       | (x == 0) || (y == 0) = (World a state c d e (x,y) m (Limit,y1,z1,p))
-                                                       | (x == 1) = (World a state (W Red) d e (0,y) m (Limit,y1,z1,p))
-                                                       | (y == 1) = (World a state (W Black) d e (x,0) m (Limit,y1,z1,p))
-                                                       | otherwise            = (World a state c d e (f state) m (Limit,y1,z1,p))
+update _ (World (GameLogic a b (W x) f) (GameState d e g h)) = (World (GameLogic a b (W x) f) (GameState d e g h))
+update _ (World (GameLogic a state c  (x,y)) (GameState d e m (Limit,y1,z1,p))) | (p == True) = (World (GameLogic a state c  (x,y)) (GameState d e m (Limit,y1,z1,p)))
+                                                       | (x == 0) || (y == 0) = (World (GameLogic a state c (x,y)) (GameState d e m (Limit,y1,z1,p)))
+                                                       | (x == 1) = (World (GameLogic a state (W Red)  (0,y)) (GameState d e m (Limit,y1,z1,p)))
+                                                       | (y == 1) = (World (GameLogic a state (W Black) (x,0))(GameState d e m (Limit,y1,z1,p)))
+                                                       | otherwise            = (World (GameLogic a state c (f state))(GameState d e m (Limit,y1,z1,p)))
                                                          where
                                                           f Red     = (x, y-1)
                                                           f Black   = (x-1, y)
-update _ (World a b c d e f g h) = (World a b c d e f g h)  --если режим неограниченный по времени, то ничего не делаем
+update _ (World (GameLogic a b c f)(GameState d e g h)) = (World (GameLogic a b c f)(GameState d e g h))  --если режим неограниченный по времени, то ничего не делаем
 
 --переводит внутреннее представление мира в картинку
 convert :: World -> Picture
-convert (World m _ w p _ t menu (ti,ha,mo,pa)) =
+convert (World (GameLogic m _ w t)(GameState p _ menu (ti,ha,mo,pa))) =
                            Pictures $
                            drawPic w p ++ 
                            time ti t p    ++ 
@@ -194,21 +194,21 @@ drawLastCell pos_x pos_y (Just x)         =       [Translate
 
 --обработка внешних событий
 handle :: Event -> World -> World
-handle (EventKey (Char 'z') Down _ _) (World a b c d e f Empty (x,y,z,_))= World a b c d e f (Main 0) (x,y,z,True)
-handle (EventMotion (x,y)) (World a b c d e f (Main g) (x1,y1,z1,_))     = handle_menu Move (x,y) (World a b c d e f (Main g) (x1,y1,z1,True)) 
-handle (EventKey (MouseButton LeftButton) Down _ (x,y)) (World a b c d e f (Main g) (x1,y1,z1,_)) = handle_menu Click (x,y) (World a b c d e f (Main g) (x1,y1,z1,True))
-handle (EventKey (MouseButton LeftButton) Down _ (x,y)) (World a b c d e f Opt (x1,y1,z1,_)) = handle_menu Click (x,y) (World a b c d e f Opt (x1,y1,z1,True))
+handle (EventKey (Char 'z') Down _ _) (World (GameLogic a b c f)(GameState d e Empty (x,y,z,_)))= World (GameLogic a b c f)(GameState d e (Main 0) (x,y,z,True))
+handle (EventMotion (x,y)) (World (GameLogic a b c f)(GameState d e (Main g) (x1,y1,z1,_)))     = handle_menu Move (x,y) (World (GameLogic a b c f)(GameState d e (Main g) (x1,y1,z1,True))) 
+handle (EventKey (MouseButton LeftButton) Down _ (x,y)) (World (GameLogic a b c f)(GameState d e (Main g) (x1,y1,z1,_))) = handle_menu Click (x,y) (World (GameLogic a b c f)(GameState d e (Main g) (x1,y1,z1,True)))
+handle (EventKey (MouseButton LeftButton) Down _ (x,y)) (World (GameLogic a b c f)(GameState d e Opt (x1,y1,z1,_))) = handle_menu Click (x,y) (World (GameLogic a b c f)(GameState d e Opt (x1,y1,z1,True)))
 
-handle _ (World a b c d e f g (x,y,z,True)) = (World a b c d e f g (x,y,z,True))
+handle _ (World (GameLogic a b c f)(GameState d e g (x,y,z,True))) = (World (GameLogic a b c f)(GameState d e g (x,y,z,True)))
 handle (EventKey (SpecialKey KeySpace) Down _ _) w =  getback w
-handle       _                  (World m s (W Red) p b t menu (x,y,z,v)) = World m s (W Red) p b t menu (x,y,z,v)
-handle       _                  (World m s (W Black) p b t menu (x,y,z,v)) = World m s (W Black) p b t menu (x,y,z,v)
-handle (EventKey (MouseButton LeftButton) Down _ (x,y)) w = checkWorld (mainNumberRow (x,y),mainNumberCol (x,y)) w
+handle  _ (World (GameLogic m s (W Red) t)(GameState p b menu (x,y,z,v))) = World (GameLogic m s (W Red) t)(GameState p b menu (x,y,z,v))
+handle  _ (World (GameLogic m s (W Black) t)(GameState p b menu (x,y,z,v))) = World (GameLogic m s (W Black) t)(GameState p b menu (x,y,z,v))
+handle (EventKey (MouseButton LeftButton) Down _ (x,y)) (World gl gs) =World (checkLogic (mainNumberRow (x,y),mainNumberCol (x,y)) gl) (savePrevWorld (World gl gs) gs)
 handle _ w = w
 
 --обрабоктка событий в меню 
 handle_menu :: MouseEvent -> Types.Point -> World -> World
-handle_menu event (x,y) (World a b c d e f (Main g) (x1,y1,z1,p)) | t (-120) 120 (-10) 30
+handle_menu event (x,y) (World (GameLogic a b c f)(GameState d e (Main g) (x1,y1,z1,p))) | t (-120) 120 (-10) 30
                                                        = case event of
                                                          Move -> menu 1
                                                          Click-> loadGame (menu g)
@@ -219,34 +219,34 @@ handle_menu event (x,y) (World a b c d e f (Main g) (x1,y1,z1,p)) | t (-120) 120
                                                      | t (-120) 120 (-130) (-90)
                                                        = case event of
                                                          Move -> menu 3
-                                                         Click-> (World a b c d e f Opt (x1,y1,z1,p))
+                                                         Click-> (World (GameLogic a b c f)(GameState d e Opt (x1,y1,z1,p)))
                                                      |t 150 190 90 120
                                                        = case event of
-                                                         Click->  World a b c d e f Empty (x1,y1,z1,False)
+                                                         Click->  World (GameLogic a b c f)(GameState d e Empty (x1,y1,z1,False))
                                                          Move ->  menu g 
                                                      | otherwise = menu g 
                                                      where 
                                                      t dx1 dx2 dy1 dy2 = (x >= (offsetX + dx1) && x <= (offsetX + dx2)) && (y >= dy1 && y <= dy2)
-                                                     menu n = World a b c d e f (Main n) (x1,y1,z1,p) 
+                                                     menu n = World (GameLogic a b c f)(GameState d e (Main n) (x1,y1,z1,p)) 
                                                      
                                                      
-handle_menu Click (x,y) (World a b c d e f Opt (x1,y1,z1,p))| t 150 190 90 120
-                                                         = World a b c d e f Empty (x1,y1,z1,False)
+handle_menu Click (x,y) (World (GameLogic a b c f)(GameState d e Opt (x1,y1,z1,p)))| t 150 190 90 120
+                                                         = World (GameLogic a b c f)(GameState d e Empty (x1,y1,z1,False))
                                                             | t (-180) (-60) 10 60
                                                          = case x1 of
-                                                                Limit    -> World a b c d e f Opt (No_limit,y1,z1,p)
-                                                                No_limit -> World a b c d e (20,20) Opt (Limit,y1,z1,p) 
+                                                                Limit    -> World (GameLogic a b c f)(GameState d e Opt (No_limit,y1,z1,p))
+                                                                No_limit -> World (GameLogic a b c (20,20))(GameState d e Opt (Limit,y1,z1,p)) 
                                                             | t (-180) (-20) (-70) (-20)
                                                          = case y1 of
-                                                                Hard -> World a b c d e f Opt (x1,Easy,z1,p)
-                                                                Easy -> World a b c d e f Opt (x1, Hard,z1,p)                                                              
+                                                                Hard -> World (GameLogic a b c f)(GameState d e Opt (x1,Easy,z1,p))
+                                                                Easy -> World (GameLogic a b c f)(GameState d e Opt (x1, Hard,z1,p))                                                              
                                                             | t (-180) (-80) (-150) (-100)
                                                          = case z1 of 
-                                                                Hum_Comp -> World a b c d e f Opt (x1,y1,Hum_Hum,p)
-                                                                Hum_Hum  -> World a b c d e f Opt (x1,y1,Hum_Comp,p)
+                                                                Hum_Comp -> World (GameLogic a b c f)(GameState d e Opt (x1,y1,Hum_Hum,p))
+                                                                Hum_Hum  -> World (GameLogic a b c f)(GameState d e Opt (x1,y1,Hum_Comp,p))
                                                             | t (-180) (-130) (-200) (-160)
-                                                         = World a b c d e f (Main 0) (x1,y1,z1,p) 
-                                                            | otherwise = World a b c d e f Opt (x1,y1,z1,p)
+                                                         = World (GameLogic a b c f)(GameState d e  (Main 0) (x1,y1,z1,p)) 
+                                                            | otherwise = World (GameLogic a b c f)(GameState d e Opt (x1,y1,z1,p))
                                                              where 
                                                              t dx1 dx2 dy1 dy2 = (x >= (offsetX + dx1) && x <= (offsetX + dx2)) && (y >= dy1 && y <= dy2)
 
